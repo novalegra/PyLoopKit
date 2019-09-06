@@ -413,6 +413,11 @@ def get_settings(data):
     settings["insulin_delay"] = 10
     settings["carb_delay"] = 10
 
+    settings["enable_smb_after_carbs"] = False
+    settings["enable_smb_with_cob"] = True
+    # settings["enable_smb_with_temp_target"] = False
+    settings["enable_smb_always"] = False
+
     settings["default_absorption_times"] = [
         float(data.get("carb_default_absorption_times_fast")) / 60,
         float(data.get("carb_default_absorption_times_medium")) / 60,
