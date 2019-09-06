@@ -612,40 +612,40 @@ def parse_report_and_run(path, name):
          dose_ends,
          dose_values
          ) = get_insulin_data(
-            issue_dict.get("get_normalized_pump_event_dose"),
-            offset,
-            entry_to_add=issue_dict.get("get_normalized_dose_entries")[-1],
-            now_time=time_to_run
-        )
+             issue_dict.get("get_normalized_pump_event_dose"),
+             offset,
+             entry_to_add=issue_dict.get("get_normalized_dose_entries")[-1],
+             now_time=time_to_run
+         )
     elif issue_dict.get("get_normalized_pump_event_dose"):
         (dose_types,
          dose_starts,
          dose_ends,
          dose_values
          ) = get_insulin_data(
-            issue_dict.get("get_normalized_pump_event_dose"),
-            offset
-        )
+             issue_dict.get("get_normalized_pump_event_dose"),
+             offset
+         )
     elif issue_dict.get("get_normalized_dose_entries"):
         (dose_types,
          dose_starts,
          dose_ends,
          dose_values
          ) = get_insulin_data(
-            issue_dict.get("get_normalized_dose_entries"),
-            offset,
-            convert_to_units=True
-        )
+             issue_dict.get("get_normalized_dose_entries"),
+             offset,
+             convert_to_units=True
+         )
     elif issue_dict.get("cached_dose_entries"):
         (dose_types,
          dose_starts,
          dose_ends,
          dose_values
          ) = get_insulin_data(
-            issue_dict.get("cached_dose_entries"),
-            offset,
-            convert_to_units=True
-        )
+             issue_dict.get("cached_dose_entries"),
+             offset,
+             convert_to_units=True
+         )
     else:
         warnings.warn("Warning: no insulin dose information found")
         (dose_types,
@@ -667,7 +667,7 @@ def parse_report_and_run(path, name):
              dose_values
          )[0:4],
          is_dose_data=True
-    )[0:4]
+     )[0:4]
     input_dict["dose_types"] = dose_types
     input_dict["dose_start_times"] = dose_starts
     input_dict["dose_end_times"] = dose_ends
@@ -679,11 +679,11 @@ def parse_report_and_run(path, name):
          carb_values,
          carb_absorptions
          ) = sort_by_first_list(
-                 *get_carb_data(
-                     issue_dict.get("cached_carb_entries"),
-                     offset,
-                 )
-        )[0:3]
+             *get_carb_data(
+                 issue_dict.get("cached_carb_entries"),
+                 offset,
+             )
+         )[0:3]
     else:
         (carb_dates,
          carb_values,
@@ -704,17 +704,17 @@ def parse_report_and_run(path, name):
          sensitivity_end_times,
          sensitivity_values
          ) = get_sensitivities(
-            issue_dict.get(
-                "insulinSensitivityScheduleApplyingOverrideHistory_items"
-            )
-        )
+             issue_dict.get(
+                 "insulinSensitivityScheduleApplyingOverrideHistory_items"
+             )
+         )
     elif issue_dict.get("insulin_sensitivity_factor_schedule"):
         (sensitivity_start_times,
          sensitivity_end_times,
          sensitivity_values
          ) = get_sensitivities(
-            issue_dict.get("insulin_sensitivity_factor_schedule")
-        )
+             issue_dict.get("insulin_sensitivity_factor_schedule")
+         )
     else:
         raise RuntimeError("No insulin sensitivity information found")
     (sensitivity_start_times,
@@ -724,7 +724,7 @@ def parse_report_and_run(path, name):
          sensitivity_start_times,
          sensitivity_end_times,
          sensitivity_values
-    )[0:3]
+     )[0:3]
 
     input_dict["sensitivity_ratio_start_times"] = sensitivity_start_times
     input_dict["sensitivity_ratio_end_times"] = sensitivity_end_times
@@ -735,14 +735,14 @@ def parse_report_and_run(path, name):
         (carb_ratio_starts,
          carb_ratio_values
          ) = get_carb_ratios(
-            issue_dict.get("carbRatioScheduleApplyingOverrideHistory_items")
-        )
+             issue_dict.get("carbRatioScheduleApplyingOverrideHistory_items")
+         )
     elif issue_dict.get("carb_ratio_schedule"):
         (carb_ratio_starts,
          carb_ratio_values
          ) = get_carb_ratios(
-            issue_dict.get("carb_ratio_schedule")
-        )
+             issue_dict.get("carb_ratio_schedule")
+         )
     else:
         raise RuntimeError("No carb ratio information found")
     (carb_ratio_starts,
@@ -761,15 +761,15 @@ def parse_report_and_run(path, name):
          basal_rate_values,
          basal_rate_minutes
          ) = get_basal_schedule(
-            issue_dict.get("basalProfileApplyingOverrideHistory_items")
-        )
+             issue_dict.get("basalProfileApplyingOverrideHistory_items")
+         )
     elif issue_dict.get("basal_rate_schedule"):
         (basal_rate_starts,
          basal_rate_values,
          basal_rate_minutes
          ) = get_basal_schedule(
-            issue_dict.get("basal_rate_schedule")
-        )
+             issue_dict.get("basal_rate_schedule")
+         )
     else:
         raise RuntimeError("No basal rate information found")
     (basal_rate_starts,
@@ -792,8 +792,8 @@ def parse_report_and_run(path, name):
          target_range_minimum_values,
          target_range_maximum_values
          ) = get_target_range_schedule(
-            issue_dict.get("correction_range_schedule")
-        )
+             issue_dict.get("correction_range_schedule")
+         )
         (target_range_starts,
          target_range_ends,
          target_range_minimum_values,
@@ -887,5 +887,5 @@ def parse_dictionary_from_previous_run(path, name):
     ]
 
     output = update(dictionary)
-    
+
     return output

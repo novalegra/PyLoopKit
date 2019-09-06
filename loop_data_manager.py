@@ -161,7 +161,7 @@ def update(input_dict):
             or not are_carb_readings_valid(
                 carb_dates, carb_values, carb_absorptions
             )
-            
+
             or not are_insulin_doses_valid(
                 dose_types, dose_starts, dose_ends, dose_values
             )
@@ -225,13 +225,13 @@ def update(input_dict):
     (now_to_dia_insulin_effect_dates,
      now_to_dia_insulin_effect_values
      ) = get_glucose_effects(
-        dose_types, dose_starts, dose_ends, dose_values,
-        time_to_calculate_at,
-        basal_starts, basal_rates, basal_minutes,
-        sensitivity_starts, sensitivity_ends, sensitivity_values,
-        settings_dictionary.get("model"),
-        delay=settings_dictionary.get("insulin_delay") or 10
-        )
+         dose_types, dose_starts, dose_ends, dose_values,
+         time_to_calculate_at,
+         basal_starts, basal_rates, basal_minutes,
+         sensitivity_starts, sensitivity_ends, sensitivity_values,
+         settings_dictionary.get("model"),
+         delay=settings_dictionary.get("insulin_delay") or 10
+         )
 
     # if our BG data is current and we know the expected insulin effects,
     # calculate tbe counteraction effects
