@@ -547,22 +547,34 @@ def as_microbolus(
         naive_eventual_bg, min_iob_pred_bg,
         now_time, last_bolus_time,
         max_bolus, max_basal_rate,
-        volume_rounder,
         iob, cob,
         current_insulin_sensitivity, current_carb_ratio, current_basal,
         max_smb_minutes=30,
         max_uam_smb_minutes=30
         ):
-    """  Determine the bolus needed to perform the correction
+    """  Determine a microbolus and a temporary basal rate if BGs are predicted
+    to go above range
 
     Arguments:
     correction -- list of information about the total amount of insulin
                   needed to correct BGs
-    pending_insulin -- number of units expected to be delivered, but not yet
-                       reflected in the correction
-    max_bolus -- the maximum allowed bolus
-    volume_rounder -- the smallest fraction of a unit supported in
-                      insulin delivery
+
+    naive_eventual_bg -- eventual BG computed purely based on the current BG,
+                         IOB, and ISF
+    min_iob_pred_bg -- the minimum value on a BG forcast that includes only
+                       insulin and momentum effects
+
+    max_bolus -- maximum bolus that can be delivered (U)
+    max_basal_rate -- maximum basal rate that can be delivered (U/hr)
+    iob -- current insulin on board
+    cob -- current carbs on board
+    current_insulin_sensitivity -- scheduled ISF during time the loop is run
+    current_carb_ratio -- scheduled carb ratio during time the loop is run
+    current_basal -- scheduled basal rate during time the loop is run
+    max_smb_minutes -- the maximum minutes of basal insulin that can be given
+                       with a SMB
+    max_smb_minutes -- the maximum minutes of basal insulin that can be given
+                       with a SMB in the event of an unannounced meal
 
     Output:
     A bolus recommendation in form [units of bolus, pending insulin,
@@ -592,8 +604,8 @@ def as_microbolus(
     # bolus half of the required correction up to the max bolus, rounding down
     # in 0.1 U increments
     microbolus = floor(
-        min(insulin_req / 2, max_bolus)
-    ) * 10 / 10  # round to nearest tenth
+        min(insulin_req / 2, max_bolus) * 10
+        ) / 10  # round to nearest tenth
 
     # if there is insulin required but not enough for a microbolus, set a
     # temp basal rate instead
@@ -866,7 +878,6 @@ def recommended_microbolus(
         current_iob, current_cob,
         model,
         max_bolus, max_basal_rate,
-        volume_rounder=None,
         max_smb_minutes=30,
         max_uam_smb_minutes=30
         ):
@@ -906,7 +917,6 @@ def recommended_microbolus(
         naive_eventual_bg, min_iob_pred_bg,
         at_date, last_bolus_time,
         max_bolus, max_basal_rate,
-        volume_rounder,
         current_iob, current_cob,
         sensitivity_value, current_carb_ratio, current_basal,
         max_smb_minutes,
