@@ -16,7 +16,8 @@ from carb_store import get_carb_glucose_effects, get_carbs_on_board
 from date import time_interval_since
 from dose import DoseType
 from dose_math import (
-    recommended_temp_basal, recommended_bolus, recommended_microbolus)
+    recommended_temp_basal, recommended_bolus, recommended_microbolus,
+    Correction)
 from dose_store import (get_glucose_effects, get_insulin_on_board_values,
                         get_last_bolus_time)
 from glucose_store import (get_recent_momentum_effects,
@@ -346,7 +347,6 @@ def update(input_dict):
         dose_types, dose_starts, dose_ends, dose_values,
         time_to_calculate_at
     )
-    print(last_bolus_date)
 
     recommendations = update_predicted_glucose_and_recommended_basal_and_bolus(
         time_to_calculate_at,
@@ -705,13 +705,20 @@ def update_predicted_glucose_and_recommended_basal_and_bolus(
             current_iob, current_cob,
             model,
             max_bolus, max_basal_rate,
-            rate_rounder,
             max_smb_minutes,
             max_uam_smb_minutes
         )
+        print(recommendation)
         # if we actually have a microbolus recommendation, use that;
         # otherwise, set a temp basal and recommend a standard bolus
-        if recommendation:
+        if Correction.continue_current_temp:
+            return {
+                "predicted_glucose_dates": predicted_glucoses[0],
+                "predicted_glucose_values": predicted_glucoses[1],
+                "recommended_temp_basal": None,
+                "recommended_bolus": None
+            }
+        elif recommendation:
             recommendation["predicted_glucose_dates"] = predicted_glucoses[0]
             recommendation["predicted_glucose_values"] = predicted_glucoses[1]
             return recommendation
