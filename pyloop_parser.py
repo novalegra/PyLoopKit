@@ -417,6 +417,8 @@ def get_settings(data):
     settings["enable_smb_with_cob"] = True
     # settings["enable_smb_with_temp_target"] = False
     settings["enable_smb_always"] = False
+    settings["max_uam_smb_minutes"] = 30
+    settings["max_smb_minutes"] = 30
 
     settings["default_absorption_times"] = [
         float(data.get("carb_default_absorption_times_fast")) / 60,

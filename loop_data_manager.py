@@ -15,8 +15,10 @@ import warnings
 from carb_store import get_carb_glucose_effects, get_carbs_on_board
 from date import time_interval_since
 from dose import DoseType
-from dose_math import recommended_temp_basal, recommended_bolus
-from dose_store import get_glucose_effects
+from dose_math import (
+    recommended_temp_basal, recommended_bolus, recommended_microbolus)
+from dose_store import (get_glucose_effects, get_insulin_on_board_values,
+                        get_last_bolus_time)
 from glucose_store import (get_recent_momentum_effects,
                            get_counteraction_effects)
 from input_validation_tools import (
@@ -233,6 +235,24 @@ def update(input_dict):
          delay=settings_dictionary.get("insulin_delay") or 10
          )
 
+    # calculate an IOB timeline, used for graphs and calculating SMBs
+    (iob_dates,
+     iob_values
+     ) = get_insulin_on_board_values(
+             dose_types, dose_starts, dose_ends, dose_values,
+             time_to_calculate_at,
+             basal_starts, basal_rates, basal_minutes,
+             settings_dictionary.get("model"),
+             delay=settings_dictionary.get("insulin_delay") or 10
+         )
+
+    current_iob = iob_values[
+        closest_prior_to_date(
+            time_to_calculate_at,
+            iob_dates
+            )
+        ] if iob_dates else 0
+
     # if our BG data is current and we know the expected insulin effects,
     # calculate tbe counteraction effects
     if next_effect_date < last_glucose_date and insulin_effect_dates:
@@ -280,23 +300,53 @@ def update(input_dict):
             )
         ] if cob_dates else 0
 
+    # find the time of the most recent carb entry
+    last_carb_time = max(carb_dates)
+
     if settings_dictionary.get("retrospective_correction_enabled"):
         (retrospective_effect_dates,
          retrospective_effect_values
          ) = update_retrospective_glucose_effect(
-            glucose_dates, glucose_values,
-            carb_effect_dates, carb_effect_values,
-            counteraction_starts, counteraction_ends, counteraction_values,
-            settings_dictionary.get("recency_interval") or 15,
-            settings_dictionary.get(
-                "retrospective_correction_grouping_interval"
-            ) or 30,
-            time_to_calculate_at
-            )
+             glucose_dates, glucose_values,
+             carb_effect_dates, carb_effect_values,
+             counteraction_starts, counteraction_ends, counteraction_values,
+             settings_dictionary.get("recency_interval") or 15,
+             settings_dictionary.get(
+                 "retrospective_correction_grouping_interval"
+             ) or 30,
+             time_to_calculate_at
+             )
     else:
         (retrospective_effect_dates,
          retrospective_effect_values
          ) = ([], [])
+
+    # enable SMB if we have COB and SMB_with_COB is enabled
+    if current_cob > 0 and settings_dictionary.get("enable_smb_with_cob"):
+        enable_smb = True
+    # enable SMB for 6 hours after a carb entry if enabled
+    elif (last_carb_time + timedelta(hours=6) > time_to_calculate_at
+          and settings_dictionary.get("enable_smb_always")
+    ):
+        enable_smb = True
+    elif settings_dictionary.get("enable_smb_always"):
+        enable_smb = True
+    else:
+        enable_smb = False
+
+    current_carb_ratio = find_ratio_at_time(
+        carb_ratio_starts, [], carb_ratio_values,
+        time_to_calculate_at
+    )
+    current_basal = find_ratio_at_time(
+        basal_starts, [], basal_rates,
+        time_to_calculate_at
+    )
+    last_bolus_date = get_last_bolus_time(
+        dose_types, dose_starts, dose_ends, dose_values,
+        time_to_calculate_at
+    )
+    print(last_bolus_date)
 
     recommendations = update_predicted_glucose_and_recommended_basal_and_bolus(
         time_to_calculate_at,
@@ -313,7 +363,14 @@ def update(input_dict):
         settings_dictionary.get("max_basal_rate"),
         settings_dictionary.get("max_bolus"),
         last_temp_basal,
-        rate_rounder=settings_dictionary.get("rate_rounder")
+        rate_rounder=settings_dictionary.get("rate_rounder"),
+        enable_smb=enable_smb,
+        current_carb_ratio=current_carb_ratio,
+        current_basal_rate=current_basal,
+        current_iob=current_iob, current_cob=current_cob,
+        last_bolus_date=last_bolus_date,
+        max_smb_minutes=settings_dictionary.get("max_smb_minutes") or 30,
+        max_uam_smb_minutes=settings_dictionary.get("max_uam_smb_minutes") or 30
         )
 
     recommendations["insulin_effect_dates"] = now_to_dia_insulin_effect_dates
@@ -519,7 +576,13 @@ def update_predicted_glucose_and_recommended_basal_and_bolus(
         last_temp_basal,
         duration=30,
         continuation_interval=11,
-        rate_rounder=None
+        rate_rounder=None,
+        enable_smb=False,
+        current_carb_ratio=None, current_basal_rate=None,
+        current_iob=None, current_cob=None,
+        last_bolus_date=None,
+        max_smb_minutes=30,
+        max_uam_smb_minutes=30
         ):
     """ Generate glucose predictions, then use the predicted glucose along
         with settings and dose data to recommend a temporary basal rate and
@@ -602,6 +665,17 @@ def update_predicted_glucose_and_recommended_basal_and_bolus(
         retrospective_effect_dates, retrospective_effect_values
         )
 
+    if enable_smb:
+        insulin_pred_bgs = predict_glucose(
+            glucose_dates[-1], glucose_values[-1],
+            momentum_dates, momentum_values,
+            insulin_effect_dates, insulin_effect_values
+            )
+        insulin_peak_5_min_intervals = 18
+        min_iob_pred_bg = min(
+            insulin_pred_bgs[1][insulin_peak_5_min_intervals:]
+        )
+
     # Dosing requires prediction entries at least as long as the insulin
     # model duration. If our prediction is shorter than that, extend it here.
     if len(model) == 1:  # Walsh model
@@ -618,6 +692,29 @@ def update_predicted_glucose_and_recommended_basal_and_bolus(
         basal_starts, basal_rates, basal_minutes,
         last_temp_basal
     )
+
+    if enable_smb:
+        recommendation = recommended_microbolus(
+            *predicted_glucoses,
+            min_iob_pred_bg,
+            target_starts, target_ends, target_mins, target_maxes,
+            at_date, last_bolus_date,
+            suspend_threshold,
+            sensitivity_starts, sensitivity_ends, sensitivity_values,
+            current_carb_ratio, current_basal_rate,
+            current_iob, current_cob,
+            model,
+            max_bolus, max_basal_rate,
+            rate_rounder,
+            max_smb_minutes,
+            max_uam_smb_minutes
+        )
+        # if we actually have a microbolus recommendation, use that;
+        # otherwise, set a temp basal and recommend a standard bolus
+        if recommendation:
+            recommendation["predicted_glucose_dates"] = predicted_glucoses[0]
+            recommendation["predicted_glucose_values"] = predicted_glucoses[1]
+            return recommendation
 
     temp_basal = recommended_temp_basal(
         *predicted_glucoses,
