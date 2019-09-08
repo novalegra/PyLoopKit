@@ -11,6 +11,7 @@ Github URL: https://github.com/tidepool-org/LoopKit/blob/
 # pylint: disable=R0913, R0914, C0200
 from datetime import timedelta
 
+from dose import DoseType
 from dose_math import filter_date_range_for_doses
 from insulin_math import (annotated, trim, glucose_effects, reconciled,
                           insulin_on_board)
@@ -136,6 +137,32 @@ def get_glucose_effects(
          )
 
     return (filtered_starts, filtered_effect_values)
+
+
+def get_last_bolus_time(
+        types, starts, ends, values,
+        now_time
+        ):
+    dose_start = now_time - timedelta(hours=24)
+
+    filtered_doses = filter_date_range_for_doses(
+        types, starts, ends, values,
+        dose_start,
+        None
+        )
+
+    # sort the lists so we can search more effectively
+    sorted_doses = sort_dose_lists(*filtered_doses)[0:4]
+
+    # iterate backwords, since the lists are presorted
+    for (dose_type, start_date) in zip(
+        reversed(sorted_doses[0]),
+        reversed(sorted_doses[1])
+    ):
+        if dose_type == DoseType.bolus:
+            return start_date
+
+    return None
 
 
 def get_insulin_on_board_values(
