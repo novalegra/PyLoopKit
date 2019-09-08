@@ -599,7 +599,7 @@ def as_microbolus(
         max_bolus = current_basal * max_uam_smb_minutes / 60
     # otherwise, use "max_smb_minutes"-worth
     else:
-        max_bolus = current_basal * max_smb_minutes or 30 / 60
+        max_bolus = current_basal * max_smb_minutes / 60
 
     # bolus half of the required correction up to the max bolus, rounding down
     # in 0.1 U increments
