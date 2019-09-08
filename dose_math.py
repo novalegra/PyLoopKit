@@ -11,6 +11,7 @@ Github URL: https://github.com/tidepool-org/Loop/blob/
 # pylint: disable=R0913, R0914, C0200, R1705, R0912
 from datetime import timedelta
 from enum import Enum
+from math import floor
 import sys
 
 from insulin_math import is_time_between, find_ratio_at_time
@@ -26,6 +27,7 @@ class Correction(Enum):
     above_range = 2
     entirely_below_range = 3
     cancel = 4
+    continue_current_temp = 5
 
 
 def filter_date_range_for_doses(
@@ -540,6 +542,99 @@ def as_bolus(
     return [units, pending_insulin, recommendation]
 
 
+def as_microbolus(
+        correction,
+        naive_eventual_bg, min_iob_pred_bg,
+        now_time, last_bolus_time,
+        max_bolus, max_basal_rate,
+        volume_rounder,
+        iob, cob,
+        current_insulin_sensitivity, current_carb_ratio, current_basal,
+        max_smb_minutes=30,
+        max_uam_smb_minutes=30
+        ):
+    """  Determine the bolus needed to perform the correction
+
+    Arguments:
+    correction -- list of information about the total amount of insulin
+                  needed to correct BGs
+    pending_insulin -- number of units expected to be delivered, but not yet
+                       reflected in the correction
+    max_bolus -- the maximum allowed bolus
+    volume_rounder -- the smallest fraction of a unit supported in
+                      insulin delivery
+
+    Output:
+    A bolus recommendation in form [units of bolus, pending insulin,
+                                    recommendation]
+    """
+    # don't recommend a microbolus if we're not above target range or there's
+    # a currently-pending bolus
+    if correction[0] != Correction.above_range:  # or pending_bolus:
+        return None
+
+    insulin_req = correction[-1]
+
+    mealtime_insulin_required = round(cob / current_carb_ratio, 3)
+
+    # if the IOB is likely due to a meal, use "max_uam_smb_minutes"-worth
+    if iob > mealtime_insulin_required and iob > 0:
+        max_bolus = current_basal * max_uam_smb_minutes / 60
+    # otherwise, use "max_smb_minutes"-worth
+    else:
+        max_bolus = current_basal * max_smb_minutes or 30 / 60
+
+    # bolus half of the required correction up to the max bolus, rounding down
+    # in 0.1 U increments
+    microbolus = floor(
+        min(insulin_req / 2, max_bolus)
+    ) * 10 / 10  # round to nearest tenth
+
+    # if there is insulin required but not enough for a microbolus, set a
+    # temp basal rate instead
+    if insulin_req > 0 and microbolus < 0.1:
+        return None
+
+    # correct to the target BG used to calculate the correction
+    smb_target = correction[2]
+    worst_case_required_insulin = (
+        smb_target - (
+            max(0, naive_eventual_bg) - max(0, min_iob_pred_bg)
+        ) / 2
+    ) / current_insulin_sensitivity
+
+    # the required duration must be between 0 and 60 minutes, inclusive
+    required_duration = min(
+        60,
+        max(
+            60 * worst_case_required_insulin / current_basal, 0
+        )
+    )
+
+    # if required duration is less than 30 minutes, set a non-zero low temp
+    if required_duration < 30:
+        smb_low_temp = round(current_basal * required_duration / 30, 2)
+        required_duration = 30
+    else:
+        smb_low_temp = 0
+
+    last_bolus_age = (
+        now_time - last_bolus_time
+    ).total_seconds() / 60  # in minutes
+
+    # continue with the current temp rate if there was a recent bolus
+    if last_bolus_age <= 3:
+        return Correction.continue_current_temp
+
+    if required_duration > 0:
+        return {
+            "recommended_microbolus": microbolus,
+            "recommended_temp_basal": smb_low_temp,
+            "duration": required_duration
+        }
+    else:
+        return None
+
 def recommended_temp_basal(
         glucose_dates, glucose_values,
         target_starts, target_ends, target_mins, target_maxes,
@@ -749,3 +844,64 @@ def recommended_bolus(
         bolus = 0
 
     return bolus
+
+
+def recommended_microbolus(
+        glucose_dates, glucose_values,
+        min_iob_pred_bg,
+        target_starts, target_ends, target_mins, target_maxes,
+        at_date, last_bolus_time,
+        suspend_threshold,
+        sensitivity_starts, sensitivity_ends, sensitivity_values,
+        current_carb_ratio, current_basal,
+        current_iob, current_cob,
+        model,
+        max_bolus, max_basal_rate,
+        volume_rounder=None,
+        max_smb_minutes=30,
+        max_uam_smb_minutes=30
+        ):
+    assert len(glucose_dates) == len(glucose_values),\
+        "expected input shapes to match"
+
+    assert len(target_starts) == len(target_ends) == len(target_mins)\
+        == len(target_maxes), "expected input shapes to match"
+
+    assert len(sensitivity_starts) == len(sensitivity_ends)\
+        == len(sensitivity_values), "expected input shapes to match"
+
+    if (not glucose_dates
+            or not target_starts
+            or not sensitivity_starts
+       ):
+        return None
+
+    sensitivity_value = find_ratio_at_time(
+        sensitivity_starts, sensitivity_ends, sensitivity_values,
+        at_date
+        )
+
+    correction = insulin_correction(
+        glucose_dates, glucose_values,
+        target_starts, target_ends, target_mins, target_maxes,
+        at_date,
+        suspend_threshold,
+        sensitivity_value,
+        model
+        )
+
+    naive_eventual_bg = glucose_values[0] - current_iob * sensitivity_value
+
+    recommendation = as_microbolus(
+        correction,
+        naive_eventual_bg, min_iob_pred_bg,
+        at_date, last_bolus_time,
+        max_bolus, max_basal_rate,
+        volume_rounder,
+        current_iob, current_cob,
+        sensitivity_value, current_carb_ratio, current_basal,
+        max_smb_minutes,
+        max_uam_smb_minutes
+        )
+
+    return recommendation
