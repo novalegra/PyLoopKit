@@ -568,9 +568,14 @@ def as_microbolus(
     A bolus recommendation in form [units of bolus, pending insulin,
                                     recommendation]
     """
+    # if we don't know the bolus history, revert back to standard Loop algo
+    if not last_bolus_time:
+        return None
+
     # don't recommend a microbolus if we're not above target range or there's
     # a currently-pending bolus
     if correction[0] != Correction.above_range:  # or pending_bolus:
+        print("BG isn't predicted to go above range; not microbolusing")
         return None
 
     insulin_req = correction[-1]
@@ -593,6 +598,8 @@ def as_microbolus(
     # if there is insulin required but not enough for a microbolus, set a
     # temp basal rate instead
     if insulin_req > 0 and microbolus < 0.1:
+        print("Insulin required (", round(insulin_req, 2), "U), but less than"
+              + " can be safely given by a SMB; setting high temp instead")
         return None
 
     # correct to the target BG used to calculate the correction
@@ -624,6 +631,7 @@ def as_microbolus(
 
     # continue with the current temp rate if there was a recent bolus
     if last_bolus_age <= 3:
+        print("Last bolus was too recent, continuing currently-running temp")
         return Correction.continue_current_temp
 
     if required_duration > 0:
@@ -633,6 +641,7 @@ def as_microbolus(
             "duration": required_duration
         }
     else:
+        print("No zero-temp required with the SMB; setting high temp instead")
         return None
 
 def recommended_temp_basal(
