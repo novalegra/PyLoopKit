@@ -413,10 +413,17 @@ def get_settings(data):
     settings["insulin_delay"] = 10
     settings["carb_delay"] = 10
 
-    settings["enable_smb_after_carbs"] = False
-    settings["enable_smb_with_cob"] = True
+    settings["enable_smb_after_carbs"] = data.get(
+        "enable_smb_after_carbs"
+    ).upper()[0] == "T" if data.get("enable_smb_after_carbs") else False
+    settings["enable_smb_with_cob"] = data.get(
+        "enable_smb_with_cob"
+    ).upper()[0] == "T" if data.get("enable_smb_with_cob") else False
     # settings["enable_smb_with_temp_target"] = False
-    settings["enable_smb_always"] = False
+    settings["enable_smb_always"] = data.get(
+        "enable_smb_always"
+    ).upper()[0] == "T" if data.get("enable_smb_always") else False
+
     settings["max_uam_smb_minutes"] = 30
     settings["max_smb_minutes"] = 30
 
