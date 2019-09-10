@@ -546,7 +546,7 @@ def as_microbolus(
         correction,
         naive_eventual_bg, min_iob_pred_bg,
         now_time, last_bolus_time,
-        max_bolus, max_basal_rate,
+        max_basal_rate,
         iob, cob,
         current_insulin_sensitivity, current_carb_ratio, current_basal,
         max_smb_minutes=30,
@@ -563,8 +563,6 @@ def as_microbolus(
                          IOB, and ISF
     min_iob_pred_bg -- the minimum value on a BG forcast that includes only
                        insulin and momentum effects
-
-    max_bolus -- maximum bolus that can be delivered (U)
     max_basal_rate -- maximum basal rate that can be delivered (U/hr)
     iob -- current insulin on board
     cob -- current carbs on board
@@ -877,7 +875,7 @@ def recommended_microbolus(
         current_carb_ratio, current_basal,
         current_iob, current_cob,
         model,
-        max_bolus, max_basal_rate,
+        max_basal_rate,
         max_smb_minutes=30,
         max_uam_smb_minutes=30
         ):
@@ -916,7 +914,7 @@ def recommended_microbolus(
         correction,
         naive_eventual_bg, min_iob_pred_bg,
         at_date, last_bolus_time,
-        max_bolus, max_basal_rate,
+        max_basal_rate,
         current_iob, current_cob,
         sensitivity_value, current_carb_ratio, current_basal,
         max_smb_minutes,

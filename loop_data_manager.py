@@ -704,7 +704,7 @@ def update_predicted_glucose_and_recommended_basal_and_bolus(
             current_carb_ratio, current_basal_rate,
             current_iob, current_cob,
             model,
-            max_bolus, max_basal_rate,
+            max_basal_rate,
             max_smb_minutes,
             max_uam_smb_minutes
         )
