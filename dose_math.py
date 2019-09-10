@@ -613,7 +613,7 @@ def as_microbolus(
         return None
 
     # correct to the target BG used to calculate the correction
-    smb_target = correction[2]
+    smb_target = correction[3]
     worst_case_required_insulin = (
         smb_target - (
             max(0, naive_eventual_bg) - max(0, min_iob_pred_bg)
