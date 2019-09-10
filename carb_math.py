@@ -517,8 +517,9 @@ def simulation_date_range(
     start_date = date_floored_to_time_interval(start or min_date, delta)
     end_date = date_ceiled_to_time_interval(end or max_date, delta)
 
-    assert start_date <= end_date,\
-        "expected start to be less than or equal to end"
+    if start_date > end_date:
+        print("Carb math: expected start to be less than or equal to end")
+        return (start_date, start_date)
 
     return (start_date, end_date)
 
