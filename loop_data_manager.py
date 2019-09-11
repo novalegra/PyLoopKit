@@ -327,7 +327,7 @@ def update(input_dict):
         enable_smb = True
     # enable SMB for 6 hours after a carb entry if enabled
     elif (last_carb_time + timedelta(hours=6) > time_to_calculate_at
-          and settings_dictionary.get("enable_smb_always")
+          and settings_dictionary.get("enable_smb_after_carbs")
     ):
         enable_smb = True
     elif settings_dictionary.get("enable_smb_always"):
